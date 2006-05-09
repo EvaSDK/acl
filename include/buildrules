@@ -1,0 +1,75 @@
+#
+# Copyright (c) 1999, 2001-2003 Silicon Graphics, Inc.  All Rights Reserved.
+#
+ifndef _BUILDRULES_INCLUDED_
+_BUILDRULES_INCLUDED_ = 1
+
+include $(TOPDIR)/include/builddefs
+
+clean clobber : $(SUBDIRS)
+	rm -f $(DIRT)
+	@rm -fr .libs
+	$(SUBDIRS_MAKERULE)
+
+# Never blow away subdirs
+ifdef SUBDIRS
+.PRECIOUS: $(SUBDIRS)
+$(SUBDIRS):
+	$(SUBDIRS_MAKERULE)
+endif
+
+#
+# Standard targets
+#
+
+ifdef LTCOMMAND
+$(LTCOMMAND) : $(SUBDIRS) $(OBJECTS) $(LTDEPENDENCIES)
+	$(LTLINK) -o $@ $(LDFLAGS) $(OBJECTS) $(LDLIBS)
+endif
+
+ifdef LTLIBRARY
+$(LTLIBRARY) : $(SUBDIRS) $(LTOBJECTS)
+	$(LTLINK) $(LTLDFLAGS) -o $(LTLIBRARY) $(LTOBJECTS) $(LTLIBS)
+
+%.lo: %.c
+	$(LTCOMPILE) -c $<
+endif
+
+ifdef LINGUAS
+%.pot: $(XGETTEXTFILES)
+	xgettext --omit-header --language=C --keyword=_ -o $@ $(XGETTEXTFILES)
+
+%.po:
+	$(MSGMERGE) -o $@.tmpo $@ $(PKG_NAME).pot
+	@if ! diff $@.tmpo $@ >/dev/null; then \
+		echo "$@ is out of date, see $@.tmpo"; \
+	fi
+
+%.mo: %.po
+	$(MSGFMT) -o $@ $<
+endif
+
+source :
+	$(SOURCE_MAKERULE)
+
+endif # _BUILDRULES_INCLUDED_
+
+$(_FORCE):
+
+.PHONY : depend
+
+depend : $(CFILES) $(HFILES)
+	$(SUBDIRS_MAKERULE)
+	touch .dep
+	$(MAKEDEPEND) -f - -- $(CFLAGS) -- $(CFILES) | \
+	$(SED) -e 's,`pwd`,$(TOPDIR),g' \
+	    -e 's,  */[^ ]*,,g' \
+	    -e '/^[^ ]*: *$$/d' \
+	    -e '/^#.*/d' -e '/^ *$$/d' \
+	> .dep
+	test -s .dep || rm -f .dep
+
+# Include dep, but only if it exists
+ifeq ($(shell test -f .dep && echo .dep), .dep)
+include .dep
+endif
