@@ -1,3 +1,9 @@
+acl (2.2.42.nfsv4-1) unstable; urgency=low
+
+  * Add support for NFSv4 ACLs
+
+ -- J. Bruce Fields <bfields@fieldses.org>  Fri, 02 Sep 2006 00:22:07 -0400
+
 acl (2.2.42-1) unstable; urgency=low
 
   * New upstream release
