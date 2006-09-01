@@ -22,6 +22,7 @@
 #include <unistd.h>
 #include <attr/xattr.h>
 #include "libacl.h"
+#include "libacl_nfs4.h"
 
 #include "byteorder.h"
 #include "acl_ea.h"
@@ -35,6 +36,34 @@ __acl_extended_file(const char *path_p,
 {
 	int base_size = sizeof(acl_ea_header) + 3 * sizeof(acl_ea_entry);
 	int retval;
+
+	/* XXX: Ugh: what's the easiest way to do this, taking
+	 * into account default acl's, and that length alone won't do this?
+	 * Also I'm a little uncomfortable with the amount of #ifdef
+	 * NFS4 stuff that's going on.  We need a cleaner separation. */
+#ifdef USE_NFSV4_TRANS
+	retval = fun(path_p, ACL_NFS4_XATTR, NULL, 0);
+	if (retval < 0 && errno != ENOATTR && errno != EOPNOTSUPP)
+		return -1;
+	if (retval >= 0) {
+		struct nfs4_acl *nfsacl;
+		char *ext_acl_p = alloca(retval);
+		if (!ext_acl_p)
+			return -1;
+
+		retval = fun(path_p, ACL_NFS4_XATTR, ext_acl_p, retval);
+		if (retval == -1)
+			return -1;
+
+		nfsacl = acl_nfs4_xattr_load(ext_acl_p, retval, NFS4_ACL_ISFILE);
+		if (nfsacl) {
+			int count = nfsacl->naces;
+			acl_nfs4_free(nfsacl);
+			return count > 6;
+		}
+		return 0;
+	}
+#endif
 
 	retval = fun(path_p, ACL_EA_ACCESS, NULL, 0);
 	if (retval < 0 && errno != ENOATTR && errno != ENODATA)

@@ -28,6 +28,10 @@
 #include "libacl.h"
 #include "__acl_from_xattr.h"
 
+#ifdef USE_NFSV4_TRANS
+ #include "libacl_nfs4.h"
+#endif
+
 #include "byteorder.h"
 #include "acl_ea.h"
 
@@ -38,31 +42,59 @@ acl_get_fd(int fd)
 {
 	const size_t size_guess = acl_ea_size(16);
 	char *ext_acl_p = alloca(size_guess);
+	char *name = ACL_EA_ACCESS;
 	int retval;
+	int nfsv4acls;
 
 	if (!ext_acl_p)
 		return NULL;
-	retval = fgetxattr(fd, ACL_EA_ACCESS, ext_acl_p, size_guess);
+
+#ifdef USE_NFSV4_TRANS
+	retval = fgetxattr(fd, ACL_NFS4_XATTR, ext_acl_p, size_guess);
+	if(retval == -1 && (errno == ENOATTR || errno == EOPNOTSUPP)) {
+		nfsv4acls = ACL_NFS4_NOT_USED;
+		retval = fgetxattr(fd, name, ext_acl_p, size_guess);
+	} else {
+		nfsv4acls = ACL_NFS4_USED;
+		name = ACL_NFS4_XATTR;
+	}
+#else
+	retval = fgetxattr(fd, name, ext_acl_p, size_guess);
+#endif
+
 	if (retval == -1 && errno == ERANGE) {
-		retval = fgetxattr(fd, ACL_EA_ACCESS, NULL, 0);
+		retval = fgetxattr(fd, name, NULL, 0);
 		if (retval > 0) {
 			ext_acl_p = alloca(retval);
 			if (!ext_acl_p)
 				return NULL;
-			retval = fgetxattr(fd, ACL_EA_ACCESS, ext_acl_p,retval);
+			retval = fgetxattr(fd, name, ext_acl_p, retval);
 		}
 	}
 	if (retval > 0) {
-		acl_t acl = __acl_from_xattr(ext_acl_p, retval);
-		return acl;
+#ifdef USE_NFSV4_TRANS
+		if(nfsv4acls == ACL_NFS4_USED) {
+			acl_t acl = __posix_acl_from_nfs4_xattr(ext_acl_p, retval,
+					ACL_TYPE_ACCESS, NFS4_ACL_ISFILE);
+
+			return acl;
+		}
+		else
+#endif
+		{
+			acl_t acl = __acl_from_xattr(ext_acl_p, retval);
+			return acl;
+		}
 	} else if (retval == 0 || errno == ENOATTR || errno == ENODATA) {
 		struct stat st;
 
-		if (fstat(fd, &st) == 0)
-			return acl_from_mode(st.st_mode);
-		else
+		if (fstat(fd, &st) != 0) {
 			return NULL;
-	} else
+		}
+
+		return acl_from_mode(st.st_mode);
+	} else {
 		return NULL;
+	}
 }
 

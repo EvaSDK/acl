@@ -81,7 +81,7 @@ endif
 
 GCFLAGS = $(OPTIMIZER) $(DEBUG) -funsigned-char -fno-strict-aliasing -Wall \
 	  -DVERSION=\"$(PKG_VERSION)\" -DLOCALEDIR=\"$(PKG_LOCALE_DIR)\"  \
-	  -DPACKAGE=\"$(PKG_NAME)\" -I$(TOPDIR)/include
+	  -DPACKAGE=\"$(PKG_NAME)\" -I$(TOPDIR)/include -DUSE_NFSV4_TRANS
 
 # Global, Platform, Local CFLAGS
 CFLAGS += $(GCFLAGS) $(PCFLAGS) $(LCFLAGS)

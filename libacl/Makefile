@@ -22,18 +22,37 @@ LTLDFLAGS += -Wl,--version-script,$(TOPDIR)/exports
 include $(TOPDIR)/include/builddefs
 
 LTLIBRARY = libacl.la
-LTLIBS = -lattr $(LIBMISC)
+LTLIBS = -lattr -lnfsidmap $(LIBMISC)
 LTDEPENDENCIES = $(LIBMISC)
-LT_CURRENT = 2
+LT_CURRENT = 3
 LT_REVISION = 0
-LT_AGE = 1
+LT_AGE = 2
 
-CFILES = $(POSIX_CFILES) $(LIBACL_CFILES) $(INTERNAL_CFILES) \
-	 perm_copy_fd.c perm_copy_file.c
+CFILES = $(POSIX_CFILES) $(LIBACL_CFILES) $(LIBACL_NFS4_CFILES) \
+	$(INTERNAL_CFILES) perm_copy_fd.c perm_copy_file.c
+
 HFILES = libobj.h libacl.h byteorder.h __acl_from_xattr.h __acl_to_xattr.h \
-	 perm_copy.h __acl_extended_file.h
+	 perm_copy.h __acl_extended_file.h $(LIBACL_NFS4_HFILES)
 
 LCFLAGS = -include perm_copy.h
+
+LIBACL_NFS4_CFILES = \
+	acl_n4tp_ace_count.c \
+	acl_n4tp_ace_trans.c       acl_nfs4_get_who.c \
+	acl_n4tp_acl_trans.c       acl_nfs4_get_whotype.c \
+	acl_n4tp_get_whotype.c     acl_nfs4_new.c \
+	acl_n4tp_set_mode.c        acl_n4tp_set_who.c \
+	acl_nfs4_add_ace.c         acl_nfs4_remove_ace.c \
+	acl_nfs4_add_pair.c \
+	acl_nfs4_copy_acl.c        acl_nfs4_set_who.c \
+	acl_nfs4_utils.c \
+	acl_nfs4_free.c            acl_nfs4_xattr_load.c \
+	acl_nfs4_xattr_pack.c      acl_nfs4_xattr_size.c \
+	acl_ptn4_acl_trans.c \
+	acl_ptn4_get_mask.c        __posix_acl_from_nfs4_xattr.c \
+
+
+LIBACL_NFS4_HFILES = ../include/libacl_nfs4.h ../include/nfs4.h
 
 POSIX_CFILES = \
 	acl_add_perm.c acl_calc_mask.c acl_clear_perms.c acl_copy_entry.c \
