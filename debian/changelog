@@ -1,3 +1,10 @@
+acl (2.2.41-1) unstable; urgency=low
+
+  * New upstream release
+  * Rework translation Makefile slightly (closes: #375796)
+
+ -- Nathan Scott <nathans@debian.org>  Fri, 21 Jul 2006 09:37:35 +1000
+
 acl (2.2.39-1) unstable; urgency=low
 
   * New upstream release

@@ -107,6 +107,11 @@ AC_DEFUN([AC_PACKAGE_NEED_ATTRIBUTES_H],
     fi
   ])
 
+AC_DEFUN([AC_PACKAGE_WANT_ATTRLIST_LIBATTR],
+  [ AC_CHECK_LIB(attr, attr_list, [have_attr_list=true], [have_attr_list=false])
+    AC_SUBST(have_attr_list)
+  ])
+
 AC_DEFUN([AC_PACKAGE_NEED_GETXATTR_LIBATTR],
   [ AC_CHECK_LIB(attr, getxattr,, [
         echo
@@ -134,8 +139,8 @@ AC_DEFUN([AC_PACKAGE_NEED_ATTRGET_LIBATTR],
     libattr="-lattr"
     test -f `pwd`/../attr/libattr/libattr.la && \
         libattr="`pwd`/../attr/libattr/libattr.la"
-    test -f $(libexecdir)$(libdirsuffix)/libattr.la && \
-	libattr="$(libexecdir)$(libdirsuffix)/libattr.la"
+    test -f ${libexecdir}${libdirsuffix}/libattr.la && \
+	libattr="${libexecdir}${libdirsuffix}/libattr.la"
     AC_SUBST(libattr)
   ])
 
@@ -152,7 +157,7 @@ AC_DEFUN([AC_PACKAGE_NEED_ATTRIBUTES_MACROS],
 	exit 1 ])
   ])
 
-# 
+#
 # Generic macro, sets up all of the global packaging variables.
 # The following environment variables may be set to override defaults:
 #   DEBUG OPTIMIZER MALLOCLIB PLATFORM DISTRIBUTION INSTALL_USER INSTALL_GROUP
@@ -181,11 +186,11 @@ AC_DEFUN([AC_PACKAGE_GLOBALS],
     malloc_lib="$MALLOCLIB"
     AC_SUBST(malloc_lib)
 
-    pkg_user=`id -u`
+    pkg_user=`id -u -n`
     test -z "$INSTALL_USER" || pkg_user="$INSTALL_USER"
     AC_SUBST(pkg_user)
 
-    pkg_group=`id -g`
+    pkg_group=`id -g -n`
     test -z "$INSTALL_GROUP" || pkg_group="$INSTALL_GROUP"
     AC_SUBST(pkg_group)
 
@@ -200,7 +205,7 @@ AC_DEFUN([AC_PACKAGE_GLOBALS],
 
 #
 # Check for specified utility (env var) - if unset, fail.
-# 
+#
 AC_DEFUN([AC_PACKAGE_NEED_UTILITY],
   [ if test -z "$2"; then
         echo
@@ -214,7 +219,7 @@ AC_DEFUN([AC_PACKAGE_NEED_UTILITY],
 # Generic macro, sets up all of the global build variables.
 # The following environment variables may be set to override defaults:
 #  CC MAKE LIBTOOL TAR ZIP MAKEDEPEND AWK SED ECHO SORT
-#  MSGFMT MSGMERGE RPM
+#  MSGFMT MSGMERGE XGETTEXT RPM
 #
 AC_DEFUN([AC_PACKAGE_UTILITIES],
   [ AC_PROG_CC
@@ -301,6 +306,13 @@ AC_DEFUN([AC_PACKAGE_UTILITIES],
         msgmerge=$MSGMERGE
         AC_SUBST(msgmerge)
         AC_PACKAGE_NEED_UTILITY($1, "$msgmerge", msgmerge, gettext)
+
+        if test -z "$XGETTEXT"; then
+                AC_PATH_PROG(XGETTEXT, xgettext,, /usr/bin:/usr/local/bin:/usr/freeware/bin)
+        fi
+        xgettext=$XGETTEXT
+        AC_SUBST(xgettext)
+        AC_PACKAGE_NEED_UTILITY($1, "$xgettext", xgettext, gettext)
     fi
 
     if test -z "$RPM"; then
