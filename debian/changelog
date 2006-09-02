@@ -1,3 +1,11 @@
+acl (2.2.39-1) unstable; urgency=low
+
+  * New upstream release
+  * Add Swedish translation from Daniel Nylander (closes: #368656)
+  * Fix get/setfacl segfault on non-existant files (closes: #370826)
+
+ -- Nathan Scott <nathans@debian.org>  Wed, 07 Jun 2006 09:30:45 +1000
+
 acl (2.2.37-1) unstable; urgency=low
 
   * New upstream release
