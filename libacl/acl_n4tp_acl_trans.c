@@ -34,27 +34,335 @@
  */
 
 #include <acl/libacl.h>
+#include <nfsidmap.h>
 #include "libacl_nfs4.h"
+
+
+/*
+ * While processing the NFSv4 ACE, this maintains bitmasks representing
+ * which permission bits have been allowed and which denied to a given
+ * entity: */
+struct posix_ace_state {
+	u_int32_t allow;
+	u_int32_t deny;
+};
+
+struct posix_user_ace_state {
+	uid_t uid;
+	struct posix_ace_state perms;
+};
+
+struct posix_ace_state_array {
+	int n;
+	struct posix_user_ace_state aces[];
+};
+
+/*
+ * While processing the NFSv4 ACE, this maintains the partial permissions
+ * calculated so far: */
+
+struct posix_acl_state {
+	struct posix_ace_state owner;
+	struct posix_ace_state group;
+	struct posix_ace_state other;
+	struct posix_ace_state everyone;
+	struct posix_ace_state mask; /* Deny unused in this case */
+	struct posix_ace_state_array *users;
+	struct posix_ace_state_array *groups;
+};
+
+static int
+init_state(struct posix_acl_state *state, int cnt)
+{
+	int alloc;
+
+	memset(state, 0, sizeof(struct posix_acl_state));
+	/*
+	 * In the worst case, each individual acl could be for a distinct
+	 * named user or group, but we don't no which, so we allocate
+	 * enough space for either:
+	 */
+	alloc = sizeof(struct posix_ace_state_array)
+		+ cnt*sizeof(struct posix_ace_state);
+	state->users = calloc(1, alloc);
+	if (!state->users)
+		return -ENOMEM;
+	state->groups = calloc(1, alloc);
+	if (!state->groups) {
+		free(state->users);
+		return -ENOMEM;
+	}
+	return 0;
+}
+
+static void
+free_state(struct posix_acl_state *state) {
+	free(state->users);
+	free(state->groups);
+}
+
+static inline void add_to_mask(struct posix_acl_state *state, struct posix_ace_state *astate)
+{
+	state->mask.allow |= astate->allow;
+}
+
+/*
+ * We only map from NFSv4 to POSIX ACLs when getting ACLs, when we err on the
+ * side of permissiveness (so as not to make the file appear more secure than
+ * it really is), so the mode bit mapping below is optimistic.
+ */
+static void
+set_mode_from_nfs4(acl_entry_t pace, u_int32_t perm, int is_dir)
+{
+	u32 write_mode = NFS4_WRITE_MODE;
+	acl_permset_t perms;
+
+	acl_get_permset(pace, &perms);
+	acl_clear_perms(perms);
+	if (is_dir)
+		write_mode |= NFS4_ACE_DELETE_CHILD;
+	if (perm & NFS4_READ_MODE)
+		acl_add_perm(perms, ACL_READ);
+	if (perm & write_mode)
+		acl_add_perm(perms, ACL_WRITE);
+	if (perm & NFS4_EXECUTE_MODE)
+		acl_add_perm(perms, ACL_EXECUTE);
+	acl_set_permset(pace, perms);
+}
+
+/* XXX: add a "check allow" that can warn on e.g. allows of WRITE_ACL
+ * to non-owner? */
+
+/* XXX: replace error returns by errno sets all over.  Ugh. */
+
+static acl_t
+posix_state_to_acl(struct posix_acl_state *state, int is_dir)
+{
+	acl_entry_t pace;
+	acl_t pacl;
+	int nace;
+	int i, error = 0;
+
+	nace = 4 + state->users->n + state->groups->n;
+	pacl = acl_init(nace);
+	if (!pacl)
+		return NULL;
+
+	error = acl_create_entry(&pacl, &pace);
+	if (error)
+		goto out_err;
+	acl_set_tag_type(pace, ACL_USER_OBJ);
+	set_mode_from_nfs4(pace, state->owner.allow, is_dir);
+
+	for (i=0; i < state->users->n; i++) {
+		error = acl_create_entry(&pacl, &pace);
+		if (error)
+			goto out_err;
+		acl_set_tag_type(pace, ACL_USER);
+		set_mode_from_nfs4(pace, state->users->aces[i].perms.allow,
+					is_dir);
+		acl_set_qualifier(pace, &state->users->aces[i].uid);
+		add_to_mask(state, &state->users->aces[i].perms);
+	}
+
+	error = acl_create_entry(&pacl, &pace);
+	if (error)
+		goto out_err;
+	acl_set_tag_type(pace, ACL_GROUP_OBJ);
+	set_mode_from_nfs4(pace, state->group.allow, is_dir);
+	add_to_mask(state, &state->group);
+
+	for (i=0; i < state->groups->n; i++) {
+		error = acl_create_entry(&pacl, &pace);
+		if (error)
+			goto out_err;
+		acl_set_tag_type(pace, ACL_GROUP);
+		set_mode_from_nfs4(pace, state->groups->aces[i].perms.allow,
+					is_dir);
+		acl_set_qualifier(pace, &state->groups->aces[i].uid);
+		add_to_mask(state, &state->groups->aces[i].perms);
+	}
+
+	error = acl_create_entry(&pacl, &pace);
+	if (error)
+		goto out_err;
+	acl_set_tag_type(pace, ACL_MASK);
+	set_mode_from_nfs4(pace, state->mask.allow, is_dir);
+
+	error = acl_create_entry(&pacl, &pace);
+	if (error)
+		goto out_err;
+	acl_set_tag_type(pace, ACL_OTHER);
+	set_mode_from_nfs4(pace, state->other.allow, is_dir);
+
+	return pacl;
+out_err:
+	acl_free(pacl);
+	return NULL;
+}
+
+static inline void allow_bits(struct posix_ace_state *astate, u32 mask)
+{
+	/* Allow all bits in the mask not already denied: */
+	astate->allow |= mask & ~astate->deny;
+}
+
+static inline void deny_bits(struct posix_ace_state *astate, u32 mask)
+{
+	/* Deny all bits in the mask not already allowed: */
+	astate->deny |= mask & ~astate->allow;
+}
+
+static int find_uid(struct posix_acl_state *state, struct posix_ace_state_array *a, uid_t uid)
+{
+	int i;
+
+	for (i = 0; i < a->n; i++)
+		if (a->aces[i].uid == uid)
+			return i;
+	/* Not found: */
+	a->n++;
+	a->aces[i].uid = uid;
+	a->aces[i].perms.allow = state->everyone.allow;
+	a->aces[i].perms.deny  = state->everyone.deny;
+
+	return i;
+}
+
+static void deny_bits_array(struct posix_ace_state_array *a, u32 mask)
+{
+	int i;
+
+	for (i=0; i < a->n; i++)
+		deny_bits(&a->aces[i].perms, mask);
+}
+
+static void allow_bits_array(struct posix_ace_state_array *a, u32 mask)
+{
+	int i;
+
+	for (i=0; i < a->n; i++)
+		allow_bits(&a->aces[i].perms, mask);
+}
+
+static acl_tag_t acl_n4tp_get_whotype(struct nfs4_ace *ace)
+{
+	int nfs4type;
+	int result;
+
+	result = acl_nfs4_get_who(ace, &nfs4type, NULL);
+	if (result < 0)
+		return -1;
+
+	switch (nfs4type) {
+		case NFS4_ACL_WHO_NAMED:
+			return (ace->flag & NFS4_ACE_IDENTIFIER_GROUP ?
+					ACL_GROUP : ACL_USER);
+		case NFS4_ACL_WHO_OWNER:
+			return ACL_USER_OBJ;
+		case NFS4_ACL_WHO_GROUP:
+			return ACL_GROUP_OBJ;
+		case NFS4_ACL_WHO_EVERYONE:
+			return ACL_OTHER;
+	}
+	errno = EINVAL;
+	return -1;
+}
+
+static int process_one_v4_ace(struct posix_acl_state *state,
+				struct nfs4_ace *ace)
+{
+	u32 mask = ace->access_mask;
+	uid_t id;
+	int i;
+
+	if (nfs4_init_name_mapping(NULL))
+		return -1;
+
+	switch (acl_n4tp_get_whotype(ace)) {
+	case ACL_USER_OBJ:
+		if (ace->type == NFS4_ACE_ACCESS_ALLOWED_ACE_TYPE) {
+			allow_bits(&state->owner, mask);
+		} else {
+			deny_bits(&state->owner, mask);
+		}
+		break;
+	case ACL_USER:
+		if (nfs4_name_to_uid(ace->who, &id))
+			return -1;
+		i = find_uid(state, state->users, id);
+		if (ace->type == NFS4_ACE_ACCESS_ALLOWED_ACE_TYPE) {
+			allow_bits(&state->users->aces[i].perms, mask);
+			mask = state->users->aces[i].perms.allow;
+			allow_bits(&state->owner, mask);
+		} else {
+			deny_bits(&state->users->aces[i].perms, mask);
+		}
+		break;
+	case ACL_GROUP_OBJ:
+		if (ace->type == NFS4_ACE_ACCESS_ALLOWED_ACE_TYPE) {
+			allow_bits(&state->group, mask);
+			mask = state->group.allow;
+			allow_bits(&state->owner, mask);
+			allow_bits(&state->everyone, mask);
+			allow_bits_array(state->users, mask);
+			allow_bits_array(state->groups, mask);
+		} else {
+			deny_bits(&state->group, mask);
+		}
+		break;
+	case ACL_GROUP:
+		if (nfs4_name_to_gid(ace->who, &id))
+			return -1;
+		i = find_uid(state, state->groups, id);
+		if (ace->type == NFS4_ACE_ACCESS_ALLOWED_ACE_TYPE) {
+			allow_bits(&state->groups->aces[i].perms, mask);
+			mask = state->groups->aces[i].perms.allow;
+			allow_bits(&state->owner, mask);
+			allow_bits(&state->group, mask);
+			allow_bits(&state->everyone, mask);
+			allow_bits_array(state->users, mask);
+			allow_bits_array(state->groups, mask);
+		} else {
+			deny_bits(&state->groups->aces[i].perms, mask);
+		}
+		break;
+	case ACL_OTHER:
+		if (ace->type == NFS4_ACE_ACCESS_ALLOWED_ACE_TYPE) {
+			allow_bits(&state->owner, mask);
+			allow_bits(&state->group, mask);
+			allow_bits(&state->other, mask);
+			allow_bits(&state->everyone, mask);
+			allow_bits_array(state->users, mask);
+			allow_bits_array(state->groups, mask);
+		} else {
+			deny_bits(&state->owner, mask);
+			deny_bits(&state->group, mask);
+			deny_bits(&state->other, mask);
+			deny_bits(&state->everyone, mask);
+			deny_bits_array(state->users, mask);
+			deny_bits_array(state->groups, mask);
+		}
+	}
+	return 0;
+}
 
 acl_t acl_n4tp_acl_trans(struct nfs4_acl * nacl_p, acl_type_t ptype)
 {
-
-	acl_t pacl_p = NULL;
-	acl_t * pacl_pp;
+	struct posix_acl_state state;
+	acl_t pacl;
 	struct nfs4_acl * temp_acl;
-	int naces = -1;
 	int num_aces;
 	int ace_num;
 	struct nfs4_ace * cur_ace = NULL;
-	struct nfs4_ace * mask_ace = NULL;
 	struct nfs4_ace * temp_ace = NULL;
-	int result;
+	int ret;
 	u32 flags;
 	u32 iflags = NFS4_ACL_NOFLAGS;
 
 	if (nacl_p == NULL) {
 		errno = EINVAL;
-		goto failed;
+		return NULL;
 	}
 
 	if (ptype == ACL_TYPE_DEFAULT) {
@@ -62,25 +370,25 @@ acl_t acl_n4tp_acl_trans(struct nfs4_acl * nacl_p, acl_type_t ptype)
 			iflags |= NFS4_ACL_REQUEST_DEFAULT;
 		else {
 			errno = EINVAL;
-			goto failed;
+			return NULL;
 		}
 	}
 
 	/* Copy so we can delete bits without borking the original */
 	temp_acl = acl_nfs4_copy_acl(nacl_p);
 	if (temp_acl == NULL)
-		goto failed;
+		return NULL;
 
 	num_aces = temp_acl->naces;
 
 	/* Strip or keep inheritance aces depending upon the type of posix acl
 	 * requested */
-	cur_ace = acl_nfs4_get_first_ace(temp_acl);
+	cur_ace = temp_acl->ace_head.tqh_first;
 	ace_num = 1;
 
-	while(1) {
-		if(cur_ace == NULL) {
-			if(ace_num > num_aces)
+	while (1) {
+		if (cur_ace == NULL) {
+			if (ace_num > num_aces)
 				break;
 			else
 				goto free_failed;
@@ -88,10 +396,11 @@ acl_t acl_n4tp_acl_trans(struct nfs4_acl * nacl_p, acl_type_t ptype)
 
 		/* get the next ace now because we may be freeing the current ace */
 		temp_ace = cur_ace;
-		acl_nfs4_get_next_ace(&cur_ace);
+		cur_ace = cur_ace->l_ace.tqe_next;
 
 		flags = temp_ace->flag;
 
+		/* XXX: bring in sync with current kernel: */
 		if (iflags & NFS4_ACL_REQUEST_DEFAULT) {
 			if((flags & NFS4_INHERITANCE_FLAGS) != NFS4_INHERITANCE_FLAGS)
 				acl_nfs4_remove_ace(temp_acl, temp_ace);
@@ -104,61 +413,32 @@ acl_t acl_n4tp_acl_trans(struct nfs4_acl * nacl_p, acl_type_t ptype)
 		ace_num++;
 	}
 
-
-	naces = acl_n4tp_ace_count(temp_acl);
-	if (naces < 0) {
-		errno = EINVAL;
+	ret = init_state(&state, temp_acl->naces);
+	if (ret)
 		goto free_failed;
+
+	cur_ace = temp_acl->ace_head.tqh_first;
+	while (cur_ace) {
+		if (process_one_v4_ace(&state, cur_ace)) {
+			free_state(&state);
+			goto free_failed;
+		}
+		cur_ace = cur_ace->l_ace.tqe_next;
 	}
-
-	if (naces == 0)
-		return acl_init(0);
-
-	pacl_p = acl_init(naces);
-
-	if(pacl_p == NULL)
-		goto free_failed;
-
-	pacl_pp = &pacl_p;
-
-	cur_ace = acl_nfs4_get_first_ace(temp_acl);
-
-	result = user_obj_from_v4(temp_acl, &cur_ace, pacl_pp, iflags);
-	if(result < 0)
-		goto acl_free_failed;
-
-	result = users_from_v4(temp_acl, &cur_ace, &mask_ace, pacl_pp, iflags);
-	if(result < 0)
-		goto acl_free_failed;
-
-	result = group_obj_and_groups_from_v4(temp_acl, &cur_ace,
-			&mask_ace, pacl_pp, iflags);
-	if(result < 0)
-		goto acl_free_failed;
-
-	result = mask_from_v4(temp_acl, &cur_ace, &mask_ace, pacl_pp, iflags);
-	if(result < 0)
-		goto acl_free_failed;
-
-	result = other_from_v4(temp_acl, &cur_ace, pacl_pp, iflags);
-	if(result < 0)
-		goto acl_free_failed;
-
-	result = acl_valid(*pacl_pp);
-	if(result < 0)
-		goto acl_free_failed;
 
 	acl_nfs4_free(temp_acl);
 
-	return *pacl_pp;
+	pacl = posix_state_to_acl(&state, nacl_p->is_directory);
 
-acl_free_failed:
-	acl_free(*pacl_pp);
+	free_state(&state);
+
+	ret = acl_valid(pacl);
+	if (ret < 0)
+		goto free_failed;
+
+	return pacl;
 
 free_failed:
 	acl_nfs4_free(temp_acl);
-
-failed:
 	return NULL;
 }
-

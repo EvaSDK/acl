@@ -82,14 +82,6 @@ extern void				acl_nfs4_remove_ace(struct nfs4_acl * acl, struct nfs4_ace * ace)
 
 /* nfs4 -> posix */
 extern acl_t		acl_n4tp_acl_trans(struct nfs4_acl *, acl_type_t);
-extern int			acl_n4tp_set_mode(acl_entry_t pace, u32 nfs4_access_mask,
-							int iflags);
-extern int			acl_n4tp_ace_count(struct nfs4_acl *n4acl);
-extern int			acl_n4tp_ace_trans(struct nfs4_ace *ace, acl_t *pacl,
-							acl_tag_t tag, int iflags);
-extern int			acl_n4tp_set_who(acl_entry_t ace, char* who,
-							acl_tag_t who_type);
-extern acl_tag_t	acl_n4tp_get_whotype(struct nfs4_ace *ace);
 
 /* posix -> nfs4 */
 extern int				acl_ptn4_get_mask(u32* mask, acl_permset_t perms,
@@ -98,37 +90,13 @@ extern int acl_ptn4_acl_trans(acl_t, struct nfs4_acl *, acl_type_t, u32, char*);
 
 
 /** Access Functions **/
-extern inline struct nfs4_ace *
-					acl_nfs4_get_next_ace(struct nfs4_ace **);
-extern inline struct nfs4_ace *
-					acl_nfs4_get_first_ace(struct nfs4_acl *);
 extern inline int	acl_nfs4_get_whotype(char*);
 extern int			acl_nfs4_get_who(struct nfs4_ace*, int*, char**);
 
 /**** Private(?) functions ****/
 acl_t		__posix_acl_from_nfs4_xattr(char*, int, acl_type_t, u32);
-int complementary_ace_pair(struct nfs4_ace *allow, struct nfs4_ace *deny);
-int same_who(struct nfs4_ace *a, struct nfs4_ace *b);
 
 /* These will change */
-int nfs4_get_gid_from_who(gid_t* gid, const char * who);
-int nfs4_get_uid_from_who(uid_t* uid, const char * who);
 char * nfs4_get_who_from_uid(uid_t);
 char * nfs4_get_who_from_gid(gid_t);
-int __nfs4_get_local_uid_from_who(uid_t* uid, const char * who);
-int __nfs4_get_foreign_uid_from_who(uid_t* uid, const char * who);
-int __nfs4_get_local_gid_from_who(gid_t* gid, const char * who);
-int __nfs4_get_foreign_gid_from_who(gid_t* gid, const char * who);
-int is_who_local(const char * who);
 /* End change */
-
-int user_obj_from_v4(struct nfs4_acl *n4acl, struct nfs4_ace **n4ace,
-		acl_t *pacl, int iflags);
-int users_from_v4(struct nfs4_acl *n4acl, struct nfs4_ace ** n4ace_p,
-		struct nfs4_ace **mask_ace, acl_t *pacl, int iflags);
-int group_obj_and_groups_from_v4(struct nfs4_acl *n4acl,
-		struct nfs4_ace ** n4ace_p, struct nfs4_ace **mask_ace, acl_t *pacl, int iflags);
-int mask_from_v4(struct nfs4_acl *n4acl, struct nfs4_ace ** n4ace_p,
-		struct nfs4_ace **mask_ace, acl_t *pacl, int iflags);
-int other_from_v4(struct nfs4_acl *n4acl, struct nfs4_ace ** n4ace_p,
-		acl_t *pacl, int iflags);

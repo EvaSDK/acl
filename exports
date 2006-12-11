@@ -103,39 +103,17 @@ ACL_1.2 {
 	acl_nfs4_remove_ace;
 
 	acl_n4tp_acl_trans;
-	acl_n4tp_set_mode;
-	acl_n4tp_ace_count;
-	acl_n4tp_ace_trans;
-	acl_n4tp_set_who;
-	acl_n4tp_get_whotype;
 
 	acl_ptn4_get_mask;
 	acl_ptn4_acl_trans;
 
-	acl_nfs4_get_next_ace;
-	acl_nfs4_get_first_ace;
-	acl_nfs4_get_dir;
 	acl_nfs4_get_whotype;
 	acl_nfs4_get_who;
 	acl_nfs4_entries;
 
     local:
 	__posix_acl_from_nfs4_xattr;
-	complementary_ace_pair;
-	same_who;
-	nfs4_get_gid_from_who;
-	nfs4_get_uid_from_who;
 	nfs4_get_who_from_uid;
 	nfs4_get_who_from_gid;
-	__nfs4_get_local_uid_from_who;
-	__nfs4_get_foreign_uid_from_who;
-	__nfs4_get_local_gid_from_who;
-	__nfs4_get_foreign_gid_from_who;
-	is_who_local;
 
-	user_obj_from_v4;
-	users_from_v4;
-	group_obj_and_groups_from_v4;
-	mask_from_v4;
-	other_from_v4;
 } ACL_1.1;

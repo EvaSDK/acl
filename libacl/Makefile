@@ -37,15 +37,12 @@ HFILES = libobj.h libacl.h byteorder.h __acl_from_xattr.h __acl_to_xattr.h \
 LCFLAGS = -include perm_copy.h
 
 LIBACL_NFS4_CFILES = \
-	acl_n4tp_ace_count.c \
-	acl_n4tp_ace_trans.c       acl_nfs4_get_who.c \
+	acl_nfs4_get_who.c \
 	acl_n4tp_acl_trans.c       acl_nfs4_get_whotype.c \
-	acl_n4tp_get_whotype.c     acl_nfs4_new.c \
-	acl_n4tp_set_mode.c        acl_n4tp_set_who.c \
+	acl_nfs4_new.c \
 	acl_nfs4_add_ace.c         acl_nfs4_remove_ace.c \
 	acl_nfs4_add_pair.c \
 	acl_nfs4_copy_acl.c        acl_nfs4_set_who.c \
-	acl_nfs4_utils.c \
 	acl_nfs4_free.c            acl_nfs4_xattr_load.c \
 	acl_nfs4_xattr_pack.c      acl_nfs4_xattr_size.c \
 	acl_ptn4_acl_trans.c \

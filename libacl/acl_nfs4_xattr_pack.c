@@ -75,7 +75,7 @@ int acl_nfs4_xattr_pack(struct nfs4_acl * acl, char** bufp)
 	rbuflen = sizeof(u32);
 	p += sizeof(u32);
 
-	ace = acl_nfs4_get_first_ace(acl);
+	ace = acl->ace_head.tqh_first;
 	ace_num = 1;
 
 	while(1)
@@ -126,7 +126,7 @@ int acl_nfs4_xattr_pack(struct nfs4_acl * acl, char** bufp)
 			rbuflen += NFS4_XDR_MOD;
 		}
 
-		acl_nfs4_get_next_ace(&ace);
+		ace = ace->l_ace.tqe_next;
 		ace_num++;
 	}
 
