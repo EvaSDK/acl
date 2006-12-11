@@ -54,7 +54,7 @@ struct nfs4_acl * acl_nfs4_copy_acl(struct nfs4_acl * nacl)
 	if(new_acl == NULL)
 		goto failed;
 
-	ace = acl_nfs4_get_first_ace(nacl);
+	ace = nacl->ace_head.tqh_first;
 	nace = 1;
 
 	while(1)
@@ -71,7 +71,7 @@ struct nfs4_acl * acl_nfs4_copy_acl(struct nfs4_acl * nacl)
 		if(result < 0)
 			goto free_failed;
 
-		acl_nfs4_get_next_ace(&ace);
+		ace = ace->l_ace.tqe_next;
 		nace++;
 	}
 

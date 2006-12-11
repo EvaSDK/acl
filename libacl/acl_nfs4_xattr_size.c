@@ -51,7 +51,7 @@ int acl_nfs4_xattr_size(struct nfs4_acl * acl)
 	/* Space for number of aces */
 	size += sizeof(u32);
 
-	ace = acl_nfs4_get_first_ace(acl);
+	ace = acl->ace_head.tqh_first;
 	ace_num = 1;
 
 	num_aces = acl->naces;
@@ -79,7 +79,7 @@ int acl_nfs4_xattr_size(struct nfs4_acl * acl)
 			size += NFS4_XDR_MOD;
 		}
 
-		acl_nfs4_get_next_ace(&ace);
+		ace = ace->l_ace.tqe_next;
 		ace_num++;
 	}
 
