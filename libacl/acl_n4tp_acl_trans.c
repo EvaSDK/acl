@@ -384,6 +384,9 @@ acl_t acl_n4tp_acl_trans(struct nfs4_acl * nacl_p, acl_type_t ptype)
 	 * requested */
 	cur_ace = temp_acl->ace_head.tqh_first;
 
+#define FILE_OR_DIR_INHERIT (NFS4_ACE_FILE_INHERIT_ACE \
+				| NFS4_ACE_DIRECTORY_INHERIT_ACE)
+
 	while (cur_ace) {
 		/* get the next ace now in case we free the current ace */
 		temp_ace = cur_ace;
@@ -392,12 +395,11 @@ acl_t acl_n4tp_acl_trans(struct nfs4_acl * nacl_p, acl_type_t ptype)
 		flags = temp_ace->flag;
 
 		if (iflags & NFS4_ACL_REQUEST_DEFAULT) {
-			if((flags & NFS4_INHERITANCE_FLAGS) != NFS4_INHERITANCE_FLAGS)
+			if (!(temp_ace->flag & FILE_OR_DIR_INHERIT))
 				acl_nfs4_remove_ace(temp_acl, temp_ace);
 		} else {
-			if ((flags & NFS4_INHERITANCE_FLAGS) == NFS4_INHERITANCE_FLAGS) {
+			if (temp_ace->flag & NFS4_ACE_INHERIT_ONLY_ACE)
 				acl_nfs4_remove_ace(temp_acl, temp_ace);
-			}
 		}
 	}
 
