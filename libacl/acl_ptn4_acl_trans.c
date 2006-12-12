@@ -38,6 +38,9 @@
 #include <nfsidmap.h>
 #include "libacl_nfs4.h"
 
+/* flags used to simulate posix default ACLs */
+#define NFS4_INHERITANCE_FLAGS (NFS4_ACE_FILE_INHERIT_ACE \
+		| NFS4_ACE_DIRECTORY_INHERIT_ACE | NFS4_ACE_INHERIT_ONLY_ACE)
 
 /* Plan:
  * 1: if setting default, remove all purely inherited aces, and replace
