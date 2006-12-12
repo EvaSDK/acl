@@ -40,35 +40,35 @@ int acl_ptn4_get_mask(u32* mask, acl_permset_t perms, int iflags)
 {
 	int result;
 
-    *mask = NFS4_ANYONE_MODE;
+	*mask = NFS4_ANYONE_MODE;
 
-	if(perms == NULL) {
+	if (perms == NULL) {
 		errno = EINVAL;
 		goto failed;
 	}
 
-    if (iflags & NFS4_ACL_OWNER)
-        *mask |= NFS4_OWNER_MODE;
+	if (iflags & NFS4_ACL_OWNER)
+		*mask |= NFS4_OWNER_MODE;
 
 	result = acl_get_perm(perms, ACL_READ);
-	if(result < 0)
+	if (result < 0)
 		goto failed;
 	else if(result == 1)
 		*mask |= NFS4_READ_MODE;
 
 	result = acl_get_perm(perms, ACL_WRITE);
-	if(result < 0)
+	if (result < 0)
 		goto failed;
-	else if(result == 1) {
+	else if (result == 1) {
 		*mask |= NFS4_WRITE_MODE;
-		if(iflags & NFS4_ACL_ISDIR)
+		if (iflags & NFS4_ACL_ISDIR)
 			*mask |= NFS4_ACE_DELETE_CHILD;
 	}
 
 	result = acl_get_perm(perms, ACL_EXECUTE);
-	if(result < 0)
+	if (result < 0)
 		goto failed;
-	else if(result == 1)
+	else if (result == 1)
 		*mask |= NFS4_EXECUTE_MODE;
 
 	return 0;
