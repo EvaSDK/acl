@@ -99,14 +99,3 @@ acl_t		__posix_acl_from_nfs4_xattr(char*, int, acl_type_t, u32);
 char * nfs4_get_who_from_uid(uid_t);
 char * nfs4_get_who_from_gid(gid_t);
 /* End change */
-
-int user_obj_from_v4(struct nfs4_acl *n4acl, struct nfs4_ace **n4ace,
-		acl_t *pacl, int iflags);
-int users_from_v4(struct nfs4_acl *n4acl, struct nfs4_ace ** n4ace_p,
-		struct nfs4_ace **mask_ace, acl_t *pacl, int iflags);
-int group_obj_and_groups_from_v4(struct nfs4_acl *n4acl,
-		struct nfs4_ace ** n4ace_p, struct nfs4_ace **mask_ace, acl_t *pacl, int iflags);
-int mask_from_v4(struct nfs4_acl *n4acl, struct nfs4_ace ** n4ace_p,
-		struct nfs4_ace **mask_ace, acl_t *pacl, int iflags);
-int other_from_v4(struct nfs4_acl *n4acl, struct nfs4_ace ** n4ace_p,
-		acl_t *pacl, int iflags);
