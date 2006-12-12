@@ -353,7 +353,6 @@ acl_t acl_n4tp_acl_trans(struct nfs4_acl * nacl_p, acl_type_t ptype)
 	acl_t pacl;
 	struct nfs4_acl * temp_acl;
 	int num_aces;
-	int ace_num;
 	struct nfs4_ace * cur_ace = NULL;
 	struct nfs4_ace * temp_ace = NULL;
 	int ret;
@@ -384,23 +383,14 @@ acl_t acl_n4tp_acl_trans(struct nfs4_acl * nacl_p, acl_type_t ptype)
 	/* Strip or keep inheritance aces depending upon the type of posix acl
 	 * requested */
 	cur_ace = temp_acl->ace_head.tqh_first;
-	ace_num = 1;
 
-	while (1) {
-		if (cur_ace == NULL) {
-			if (ace_num > num_aces)
-				break;
-			else
-				goto free_failed;
-		}
-
-		/* get the next ace now because we may be freeing the current ace */
+	while (cur_ace) {
+		/* get the next ace now in case we free the current ace */
 		temp_ace = cur_ace;
 		cur_ace = cur_ace->l_ace.tqe_next;
 
 		flags = temp_ace->flag;
 
-		/* XXX: bring in sync with current kernel: */
 		if (iflags & NFS4_ACL_REQUEST_DEFAULT) {
 			if((flags & NFS4_INHERITANCE_FLAGS) != NFS4_INHERITANCE_FLAGS)
 				acl_nfs4_remove_ace(temp_acl, temp_ace);
@@ -409,8 +399,6 @@ acl_t acl_n4tp_acl_trans(struct nfs4_acl * nacl_p, acl_type_t ptype)
 				acl_nfs4_remove_ace(temp_acl, temp_ace);
 			}
 		}
-
-		ace_num++;
 	}
 
 	ret = init_state(&state, temp_acl->naces);
