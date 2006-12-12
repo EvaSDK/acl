@@ -38,9 +38,10 @@
 #include <nfsidmap.h>
 #include "libacl_nfs4.h"
 
-/* flags used to simulate posix default ACLs */
-#define NFS4_INHERITANCE_FLAGS (NFS4_ACE_FILE_INHERIT_ACE \
-		| NFS4_ACE_DIRECTORY_INHERIT_ACE | NFS4_ACE_INHERIT_ONLY_ACE)
+
+#define FILE_OR_DIR_INHERIT (NFS4_ACE_FILE_INHERIT_ACE \
+		| NFS4_ACE_DIRECTORY_INHERIT_ACE)
+#define NFS4_INHERITANCE_FLAGS (FILE_OR_DIR_INHERIT | NFS4_ACE_INHERIT_ONLY_ACE)
 
 /* Plan:
  * 1: if setting default, remove all purely inherited aces, and replace
@@ -48,26 +49,22 @@
  * 2: if setting effective, remove all purely effective aces, and replace
  *    all dual-use aces by purely inherited ones
  */
-
-int purge_aces(struct nfs4_acl *nacl, acl_type_t type)
+static void purge_aces(struct nfs4_acl *nacl, acl_type_t type)
 {
 	struct nfs4_ace *p, *next;
 
 	for (p = nacl->ace_head.tqh_first; p != NULL; p = next) {
 		next = p->l_ace.tqe_next;
 
-		switch (p->flag & NFS4_INHERITANCE_FLAGS) {
-		case 0:
+		if (!(p->flag & FILE_OR_DIR_INHERIT)) {
 			/* purely effective */
 			if (type == ACL_TYPE_ACCESS)
 				acl_nfs4_remove_ace(nacl, p);
-			continue;
-		case NFS4_INHERITANCE_FLAGS:
+		} else if (p->flag & NFS4_ACE_INHERIT_ONLY_ACE) {
 			/* purely inherited */
 			if (type == ACL_TYPE_DEFAULT)
 				acl_nfs4_remove_ace(nacl, p);
-			break;
-		case NFS4_INHERITANCE_FLAGS & ~NFS4_ACE_INHERIT_ONLY_ACE:
+		} else {
 			/* both effective and inherited */
 			if (type == ACL_TYPE_DEFAULT) {
 				/* Change to purely effective */
@@ -76,14 +73,9 @@ int purge_aces(struct nfs4_acl *nacl, acl_type_t type)
 				/* Change to purely inherited */
 				p->flag |= NFS4_INHERITANCE_FLAGS;
 			}
-			break;
-		default:
-			errno = EINVAL;
-			return -1;
 		}
 
 	}
-	return 0;
 }
  
 int
@@ -114,9 +106,7 @@ acl_ptn4_acl_trans(acl_t pacl, struct nfs4_acl *acl, acl_type_t type, u32 is_dir
 		iflags |= NFS4_ACL_REQUEST_DEFAULT;
 	}
 
-	result = purge_aces(acl, type);
-	if (result)
-		return -1;
+	purge_aces(acl, type);
 
 	if (is_dir & NFS4_ACL_ISDIR)
 		iflags |= NFS4_ACL_ISDIR;
@@ -517,5 +507,3 @@ out:
 		acl_nfs4_free(acl);
 	return -1;
 }
-
-
