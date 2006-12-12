@@ -382,11 +382,6 @@ acl_t acl_n4tp_acl_trans(struct nfs4_acl * nacl_p, acl_type_t ptype)
 	int ret;
 	u32 iflags = NFS4_ACL_NOFLAGS;
 
-	if (nacl_p == NULL) {
-		errno = EINVAL;
-		return NULL;
-	}
-
 	if (ptype == ACL_TYPE_DEFAULT) {
 		if (nacl_p->is_directory)
 			iflags |= NFS4_ACL_REQUEST_DEFAULT;
