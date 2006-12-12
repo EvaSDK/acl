@@ -347,16 +347,39 @@ static int process_one_v4_ace(struct posix_acl_state *state,
 	return 0;
 }
 
+#define FILE_OR_DIR_INHERIT (NFS4_ACE_FILE_INHERIT_ACE \
+				| NFS4_ACE_DIRECTORY_INHERIT_ACE)
+
+/* Strip or keep inheritance aces depending on type of posix acl requested */
+static void acl_nfs4_check_inheritance(struct nfs4_acl *acl, u32 iflags)
+{
+	struct nfs4_ace * cur_ace;
+	struct nfs4_ace * temp_ace;
+
+	cur_ace = acl->ace_head.tqh_first;
+
+	while (cur_ace) {
+		/* get the next ace now in case we free the current ace */
+		temp_ace = cur_ace;
+		cur_ace = cur_ace->l_ace.tqe_next;
+
+		if (iflags & NFS4_ACL_REQUEST_DEFAULT) {
+			if (!(temp_ace->flag & FILE_OR_DIR_INHERIT))
+				acl_nfs4_remove_ace(acl, temp_ace);
+		} else {
+			if (temp_ace->flag & NFS4_ACE_INHERIT_ONLY_ACE)
+				acl_nfs4_remove_ace(acl, temp_ace);
+		}
+	}
+}
+
 acl_t acl_n4tp_acl_trans(struct nfs4_acl * nacl_p, acl_type_t ptype)
 {
 	struct posix_acl_state state;
 	acl_t pacl;
 	struct nfs4_acl * temp_acl;
-	int num_aces;
-	struct nfs4_ace * cur_ace = NULL;
-	struct nfs4_ace * temp_ace = NULL;
+	struct nfs4_ace * cur_ace;
 	int ret;
-	u32 flags;
 	u32 iflags = NFS4_ACL_NOFLAGS;
 
 	if (nacl_p == NULL) {
@@ -378,30 +401,7 @@ acl_t acl_n4tp_acl_trans(struct nfs4_acl * nacl_p, acl_type_t ptype)
 	if (temp_acl == NULL)
 		return NULL;
 
-	num_aces = temp_acl->naces;
-
-	/* Strip or keep inheritance aces depending upon the type of posix acl
-	 * requested */
-	cur_ace = temp_acl->ace_head.tqh_first;
-
-#define FILE_OR_DIR_INHERIT (NFS4_ACE_FILE_INHERIT_ACE \
-				| NFS4_ACE_DIRECTORY_INHERIT_ACE)
-
-	while (cur_ace) {
-		/* get the next ace now in case we free the current ace */
-		temp_ace = cur_ace;
-		cur_ace = cur_ace->l_ace.tqe_next;
-
-		flags = temp_ace->flag;
-
-		if (iflags & NFS4_ACL_REQUEST_DEFAULT) {
-			if (!(temp_ace->flag & FILE_OR_DIR_INHERIT))
-				acl_nfs4_remove_ace(temp_acl, temp_ace);
-		} else {
-			if (temp_ace->flag & NFS4_ACE_INHERIT_ONLY_ACE)
-				acl_nfs4_remove_ace(temp_acl, temp_ace);
-		}
-	}
+	acl_nfs4_check_inheritance(temp_acl, iflags);
 
 	ret = init_state(&state, temp_acl->naces);
 	if (ret)
