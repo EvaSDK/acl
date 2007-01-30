@@ -143,7 +143,10 @@ posix_state_to_acl(struct posix_acl_state *state, int is_dir)
 	int nace;
 	int i, error = 0;
 
-	nace = 4 + state->users->n + state->groups->n;
+	if (state->users->n || state->groups->n)
+		nace = 4 + state->users->n + state->groups->n;
+	else
+		nace = 3;
 	pacl = acl_init(nace);
 	if (!pacl)
 		return NULL;
@@ -183,11 +186,13 @@ posix_state_to_acl(struct posix_acl_state *state, int is_dir)
 		add_to_mask(state, &state->groups->aces[i].perms);
 	}
 
-	error = acl_create_entry(&pacl, &pace);
-	if (error)
-		goto out_err;
-	acl_set_tag_type(pace, ACL_MASK);
-	set_mode_from_nfs4(pace, state->mask.allow, is_dir);
+	if (nace > 3) {
+		error = acl_create_entry(&pacl, &pace);
+		if (error)
+			goto out_err;
+		acl_set_tag_type(pace, ACL_MASK);
+		set_mode_from_nfs4(pace, state->mask.allow, is_dir);
+	}
 
 	error = acl_create_entry(&pacl, &pace);
 	if (error)
