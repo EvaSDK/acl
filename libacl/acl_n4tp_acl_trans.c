@@ -403,6 +403,11 @@ acl_t acl_n4tp_acl_trans(struct nfs4_acl * nacl_p, acl_type_t ptype)
 
 	acl_nfs4_check_inheritance(temp_acl, iflags);
 
+	if (ptype == ACL_TYPE_DEFAULT && temp_acl->naces == 0) {
+		acl_nfs4_free(temp_acl);
+		return acl_init(0);
+	}
+
 	ret = init_state(&state, temp_acl->naces);
 	if (ret)
 		goto free_failed;
