@@ -140,8 +140,7 @@ acl_set_file(const char *path_p, acl_type_t type, acl_t acl)
 
 	if (!ext_acl_p)
 		return -1;
-
-	error = setxattr(path_p, name, (char *)ext_acl_p, size, XATTR_REPLACE);
+	error = setxattr(path_p, name, (char *)ext_acl_p, size, 0);
 	free(ext_acl_p);
 	return error;
 }
