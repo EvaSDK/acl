@@ -79,7 +79,7 @@ init_state(struct posix_acl_state *state, int cnt)
 	memset(state, 0, sizeof(struct posix_acl_state));
 	/*
 	 * In the worst case, each individual acl could be for a distinct
-	 * named user or group, but we don't no which, so we allocate
+	 * named user or group, but we don't know which, so we allocate
 	 * enough space for either:
 	 */
 	alloc = sizeof(struct posix_ace_state_array)
