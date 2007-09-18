@@ -218,18 +218,36 @@ static inline void deny_bits(struct posix_ace_state *astate, u32 mask)
 	astate->deny |= mask & ~astate->allow;
 }
 
-static int find_uid(struct posix_acl_state *state, struct posix_ace_state_array *a, uid_t uid)
+static int find_uid(struct posix_acl_state *state, uid_t uid)
 {
 	int i;
+	struct posix_ace_state_array *users = state->users;
 
-	for (i = 0; i < a->n; i++)
-		if (a->aces[i].uid == uid)
+	for (i = 0; i < users->n; i++)
+		if (users->aces[i].uid == uid)
 			return i;
 	/* Not found: */
-	a->n++;
-	a->aces[i].uid = uid;
-	a->aces[i].perms.allow = state->everyone.allow;
-	a->aces[i].perms.deny  = state->everyone.deny;
+	users->n++;
+	users->aces[i].uid = uid;
+	users->aces[i].perms.allow = state->everyone.allow;
+	users->aces[i].perms.deny  = state->everyone.deny;
+
+	return i;
+}
+
+static int find_gid(struct posix_acl_state *state, uid_t uid)
+{
+	int i;
+	struct posix_ace_state_array *groups = state->groups;
+
+	for (i = 0; i < groups->n; i++)
+		if (groups->aces[i].uid == uid)
+			return i;
+	/* Not found: */
+	groups->n++;
+	groups->aces[i].uid = uid;
+	groups->aces[i].perms.allow = state->other.allow;
+	groups->aces[i].perms.deny  = state->other.deny;
 
 	return i;
 }
@@ -295,7 +313,7 @@ static int process_one_v4_ace(struct posix_acl_state *state,
 	case ACL_USER:
 		if (nfs4_name_to_uid(ace->who, &id))
 			return -1;
-		i = find_uid(state, state->users, id);
+		i = find_uid(state, id);
 		if (ace->type == NFS4_ACE_ACCESS_ALLOWED_ACE_TYPE) {
 			allow_bits(&state->users->aces[i].perms, mask);
 			mask = state->users->aces[i].perms.allow;
@@ -311,7 +329,6 @@ static int process_one_v4_ace(struct posix_acl_state *state,
 			allow_bits(&state->owner, mask);
 			allow_bits(&state->everyone, mask);
 			allow_bits_array(state->users, mask);
-			allow_bits_array(state->groups, mask);
 		} else {
 			deny_bits(&state->group, mask);
 		}
@@ -319,15 +336,13 @@ static int process_one_v4_ace(struct posix_acl_state *state,
 	case ACL_GROUP:
 		if (nfs4_name_to_gid(ace->who, &id))
 			return -1;
-		i = find_uid(state, state->groups, id);
+		i = find_gid(state, id);
 		if (ace->type == NFS4_ACE_ACCESS_ALLOWED_ACE_TYPE) {
 			allow_bits(&state->groups->aces[i].perms, mask);
 			mask = state->groups->aces[i].perms.allow;
 			allow_bits(&state->owner, mask);
-			allow_bits(&state->group, mask);
 			allow_bits(&state->everyone, mask);
 			allow_bits_array(state->users, mask);
-			allow_bits_array(state->groups, mask);
 		} else {
 			deny_bits(&state->groups->aces[i].perms, mask);
 		}
