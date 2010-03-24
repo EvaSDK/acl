@@ -125,7 +125,7 @@ restore(
 	uid_t uid;
 	gid_t gid;
 	mode_t mask, flags;
-	struct do_set_args args;
+	struct do_set_args args = { };
 	int line = 0, backup_line;
 	int error, status = 0;
 	int chmod_required = 0;

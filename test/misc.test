@@ -452,3 +452,9 @@ Dangling symlink test http://savannah.nongnu.org/bugs/?28131
 	$ setfacl -RL -m u:bin:rw d
 	> setfacl: d/b: No such file or directory
 	$ rm -R d
+
+Malformed restore file
+
+	$ echo "# owner: root" > f
+	$ setfacl --restore=f 2>&1
+	>setfacl: f: No filename found in line 0, aborting
