@@ -1,5 +1,5 @@
 /*
-  File: acl_extended_file.c
+  File: acl_extended_file_nofollow.c
 
   Copyright (C) 2011
   Andreas Gruenbacher, <a.gruenbacher@bestbits.at>
@@ -31,4 +31,3 @@ acl_extended_file_nofollow(const char *path_p)
 {
 	return __acl_extended_file(path_p, lgetxattr);
 }
-

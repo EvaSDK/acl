@@ -82,5 +82,10 @@ ACL_1.1 {
 	# Linux specific extensions
 	perm_copy_fd;
 	perm_copy_file;
-	acl_extended_file_nofollow;
 } ACL_1.0;
+
+ACL_1.2 {
+    global:
+	# Linux specific extensions
+	acl_extended_file_nofollow;
+} ACL_1.1;

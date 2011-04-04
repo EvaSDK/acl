@@ -1,5 +1,5 @@
 /*
-  File: acl_extended_file.c
+  File: __acl_extended_file.c
 
   Copyright (C) 2000, 2011
   Andreas Gruenbacher, <a.gruenbacher@bestbits.at>
@@ -29,7 +29,9 @@
 
 
 int
-__acl_extended_file(const char *path_p, getxattr_t fun)
+__acl_extended_file(const char *path_p,
+		    ssize_t (*fun)(const char *, const char *,
+				   void *, size_t))
 {
 	int base_size = sizeof(acl_ea_header) + 3 * sizeof(acl_ea_entry);
 	int retval;
@@ -46,4 +48,3 @@ __acl_extended_file(const char *path_p, getxattr_t fun)
 		return 1;
 	return 0;
 }
-
