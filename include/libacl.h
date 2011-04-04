@@ -59,6 +59,7 @@ extern int acl_check(acl_t acl, int *last);
 extern acl_t acl_from_mode(mode_t mode);
 extern int acl_equiv_mode(acl_t acl, mode_t *mode_p);
 int acl_extended_file(const char *path_p);
+int acl_extended_file_nofollow(const char *path_p);
 int acl_extended_fd(int fd);
 extern int acl_entries(acl_t acl);
 extern const char *acl_error(int code);

@@ -47,7 +47,8 @@ POSIX_CFILES = \
 
 LIBACL_CFILES = \
 	acl_to_any_text.c acl_entries.c acl_check.c acl_error.c acl_cmp.c \
-	acl_extended_fd.c acl_extended_file.c acl_equiv_mode.c acl_from_mode.c
+	acl_extended_fd.c acl_extended_file.c acl_equiv_mode.c acl_from_mode.c \
+	acl_extended_file_nofollow.c __acl_extended_file.c
 
 INTERNAL_CFILES = \
 	__acl_to_any_text.c __acl_to_xattr.c __acl_from_xattr.c \

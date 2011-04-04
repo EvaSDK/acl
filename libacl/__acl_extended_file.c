@@ -1,7 +1,7 @@
 /*
   File: acl_extended_file.c
 
-  Copyright (C) 2011
+  Copyright (C) 2000, 2011
   Andreas Gruenbacher, <a.gruenbacher@bestbits.at>
 
   This program is free software; you can redistribute it and/or
@@ -23,12 +23,27 @@
 #include <attr/xattr.h>
 #include "libacl.h"
 
+#include "byteorder.h"
+#include "acl_ea.h"
 #include "__acl_extended_file.h"
 
 
 int
-acl_extended_file(const char *path_p)
+__acl_extended_file(const char *path_p, getxattr_t fun)
 {
-	return __acl_extended_file(path_p, getxattr);
+	int base_size = sizeof(acl_ea_header) + 3 * sizeof(acl_ea_entry);
+	int retval;
+
+	retval = fun(path_p, ACL_EA_ACCESS, NULL, 0);
+	if (retval < 0 && errno != ENOATTR && errno != ENODATA)
+		return -1;
+	if (retval > base_size)
+		return 1;
+	retval = fun(path_p, ACL_EA_DEFAULT, NULL, 0);
+	if (retval < 0 && errno != ENOATTR && errno != ENODATA)
+		return -1;
+	if (retval >= base_size)
+		return 1;
+	return 0;
 }
 
