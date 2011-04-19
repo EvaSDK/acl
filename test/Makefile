@@ -23,7 +23,7 @@ TESTS = $(wildcard *.test)
 ROOT = $(wildcard root/*.test)
 NFS = $(wildcard nfs/*.test)
 LSRCFILES = sort-getfacl-output run make-tree $(TESTS) $(ROOT) $(NFS) \
-	test/malformed-restore-double-owner.acl
+	malformed-restore-double-owner.acl
 
 include $(BUILDRULES)
 
