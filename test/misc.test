@@ -3,6 +3,7 @@ Pretty comprehensive ACL tests.
 This must be run on a filesystem with ACL support. Also, you will need
 two dummy users (bin and daemon) and a dummy group (daemon).
  
+	$ rm -f f
 	$ umask 027
 	$ touch f
 	  
