@@ -60,7 +60,8 @@ static int walk_tree_rec(const char *path, int walk_flags,
 				     void *), void *arg, int depth)
 {
 	int follow_symlinks = (walk_flags & WALK_TREE_LOGICAL) ||
-			      (!(walk_flags & WALK_TREE_PHYSICAL) &&
+			      ((walk_flags & WALK_TREE_DEREFERENCE) &&
+			       !(walk_flags & WALK_TREE_PHYSICAL) &&
 			       depth == 0);
 	int have_dir_stat = 0, flags = walk_flags, err;
 	struct entry_handle dir;

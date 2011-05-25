@@ -596,7 +596,6 @@ int main(int argc, char *argv[])
 
 			case 'P':  /* do not follow symlinks */
 				walk_flags |= WALK_TREE_PHYSICAL;
-				walk_flags |= WALK_TREE_PHYSICAL;
 				walk_flags &= ~(WALK_TREE_LOGICAL | WALK_TREE_DEREFERENCE |
 						WALK_TREE_DEREFERENCE_TOPLEVEL);
 				break;
